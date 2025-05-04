@@ -1,0 +1,16 @@
+body {
+    font-family: Arial, sans-serif;
+    padding: 10px;
+    width: 250px;
+  }
+  
+  #status {
+    font-size: 18px;
+    font-weight: bold;
+  }
+  
+  #url {
+    word-wrap: break-word;
+    font-size: 12px;
+    margin-top: 10px;
+  }

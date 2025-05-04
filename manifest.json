@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Verificador de Segurança",
+  "version": "1.0",
+  "description": "Alerta sobre sites perigosos ou de phishing.",
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  } 
+  }
