@@ -1,16 +1,49 @@
+* {
+  margin: 0px;
+  padding: 0px;
+  box-sizing: border-box; 
+  min-width: 24rem;
+  max-width: 34rem;
+  min-height: 40px;
+  max-height: 60px;
+}
+
 body {
     font-family: Arial, sans-serif;
-    padding: 10px;
-    width: 250px;
-  }
-  
-  #status {
+    padding: 0px;
+    margin: 0px;
+    border: 1px solid rgb(255, 255, 255); 
+}
+
+#titulo {
+    background-color: #FE7743;
+    color: white;
+    padding: 5px;
+    margin: 0px;
+    min-width: 24rem;
+    max-width: 34rem;
+    height: 30vh;
+}
+
+#conteudo {
+    background-color: #4a4a4a;
+    padding: 5px;
+    margin: 0px; 
+    min-width: 24rem;
+    max-width: 34rem;
+    min-height: 68.5vh;
+}
+
+
+
+.status {
     font-size: 18px;
     font-weight: bold;
-  }
-  
-  #url {
+}
+
+.url {
     word-wrap: break-word;
     font-size: 12px;
     margin-top: 10px;
-  }
+}
+
