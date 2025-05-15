@@ -10,9 +10,8 @@ document.addEventListener("DOMContentLoaded", () => {
   atualizarStatus(url, status);
 });
 
-
 function atualizarStatus(urlElement, statusElement) {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
     const activeTab = tabs[0];
 
     if (!activeTab || !activeTab.url) {
@@ -26,24 +25,67 @@ function atualizarStatus(urlElement, statusElement) {
     const urlAtual = activeTab.url;
     urlElement.textContent = urlAtual;
 
+    const verificacoesData = await chrome.storage.local.get("verificacoes");
+    const verificacoes = verificacoesData.verificacoes || {};
+
+    if (verificacoes.hasOwnProperty(urlAtual)) {
+      const inseguro = verificacoes[urlAtual];
+
+      if (inseguro) {
+        statusElement.textContent = "❌ Site marcado como inseguro.";
+        statusElement.style.color = "red";
+      } else if (!verificacaoHomografos(urlAtual)) {
+        statusElement.textContent = "✅ Site seguro.";
+        statusElement.style.color = "green";
+      }
+    } else {
+      const inseguro = await verificarSite(urlAtual);
+
+      verificacoes[urlAtual] = inseguro;
+      await chrome.storage.local.set({ verificacoes });
+
+      if (inseguro) {
+        statusElement.textContent = "❌ Site marcado como inseguro.";
+        statusElement.style.color = "red";
+      } else if (!verificacaoHomografos(urlAtual)) {
+        statusElement.textContent = "✅ Site seguro.";
+        statusElement.style.color = "green";
+      }
+    }
+
     if (verificacaoHomografos(urlAtual)) {
       statusElement.textContent = "⚠️ Cuidado! Este site pode ser perigoso.";
       statusElement.style.color = "red";
-    } else {
-      statusElement.textContent = "✅ Site seguro.";
-      statusElement.style.color = "green";
     }
-
-    chrome.storage.local.get(["inseguro", "urlAtual"], (data) => {
-      if (data.urlAtual === urlAtual && data.inseguro) {
-        statusElement.textContent = "❌ Site marcado como inseguro.";
-        statusElement.style.color = "red";
-      }
-    });
   });
 }
 
+async function verificarSite(url) {
+  const apiKey = "AIzaSyDgo_mMrtYZBFLRxFBVoeuaG8uw0E-fx5k";
 
+  const response = await fetch(
+    "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=" + apiKey,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        client: {
+          clientId: "extensao-seguranca",
+          clientVersion: "1.0",
+        },
+        threatInfo: {
+          threatTypes: ["MALWARE", "SOCIAL_ENGINEERING"],
+          platformTypes: ["ANY_PLATFORM"],
+          threatEntryTypes: ["URL"],
+          threatEntries: [{ url }],
+        },
+      }),
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+
+  const data = await response.json();
+  return !!data.matches;
+}
 
 function verificacaoHomografos(url) {
   let hostname;
