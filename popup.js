@@ -1,37 +1,61 @@
 document.addEventListener("DOMContentLoaded", () => {
-  chrome.storage.local.get(["inseguro", "urlAtual"], (data) => {
-    const status = document.getElementById("status");
-    const url = document.getElementById("url");
+  const status = document.getElementById("status");
+  const url = document.getElementById("url");
 
-    if (!status || !url) {
-      console.error("Elementos HTML 'status' ou 'url' não encontrados.");
-      return;
-    }
+  if (!status || !url) {
+    console.error("Elementos HTML 'status' ou 'url' não encontrados.");
+    return;
+  }
 
-    if (!data || !data.urlAtual) {
-      console.error("Dados não encontrados no chrome.storage.local.");
-      status.textContent = "Erro ao carregar os dados.";
-      status.style.color = "gray";
-      return;
-    }
-
-    url.textContent = data.urlAtual;
-
-    if (verificacaoHomografos(data.urlAtual)) {
-      status.textContent = "⚠️ Cuidado! Este site pode ser perigoso.";
-      status.style.color = "red";
-    } else {
-      status.textContent = "✅ Site seguro.";
-      status.style.color = "green";
-    }
-  });
+  atualizarStatus(url, status);
 });
 
+
+function atualizarStatus(urlElement, statusElement) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const activeTab = tabs[0];
+
+    if (!activeTab || !activeTab.url) {
+      console.error("Aba ativa não encontrada.");
+      urlElement.textContent = "URL indisponível.";
+      statusElement.textContent = "Erro ao obter URL da aba.";
+      statusElement.style.color = "gray";
+      return;
+    }
+
+    const urlAtual = activeTab.url;
+    urlElement.textContent = urlAtual;
+
+    if (verificacaoHomografos(urlAtual)) {
+      statusElement.textContent = "⚠️ Cuidado! Este site pode ser perigoso.";
+      statusElement.style.color = "red";
+    } else {
+      statusElement.textContent = "✅ Site seguro.";
+      statusElement.style.color = "green";
+    }
+
+    chrome.storage.local.get(["inseguro", "urlAtual"], (data) => {
+      if (data.urlAtual === urlAtual && data.inseguro) {
+        statusElement.textContent = "❌ Site marcado como inseguro.";
+        statusElement.style.color = "red";
+      }
+    });
+  });
+}
+
+
+
 function verificacaoHomografos(url) {
-  
-  const normalizedUrl = url.replace(/^https?:\/\//, '');
+  let hostname;
+  try {
+    hostname = new URL(url).hostname;
+  } catch (e) {
+    console.error("URL inválida:", url);
+    return false;
+  }
+
   const punycodePattern = /^xn--/;
   const unicodeSpoofingPattern = /[^\x00-\x7F]/;
 
-  return punycodePattern.test(normalizedUrl) || unicodeSpoofingPattern.test(normalizedUrl);
+  return punycodePattern.test(hostname) || unicodeSpoofingPattern.test(hostname);
 }
