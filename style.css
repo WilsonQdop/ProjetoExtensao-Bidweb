@@ -1,49 +1,79 @@
-* {
-  margin: 0px;
-  padding: 0px;
-  box-sizing: border-box; 
-  min-width: 24rem;
-  max-width: 34rem;
-  min-height: 40px;
-  max-height: 60px;
-}
-
 body {
-    font-family: Arial, sans-serif;
-    padding: 0px;
-    margin: 0px;
-    border: 1px solid rgb(255, 255, 255); 
-}
-
-#titulo {
-    background-color: #FE7743;
+    margin: 0;
+    font-family: 'Orbitron', sans-serif;
+    background-color: #1b1429;
     color: white;
-    padding: 5px;
-    margin: 0px;
-    min-width: 24rem;
-    max-width: 34rem;
-    height: 30vh;
-}
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 250px;
+    width: 300px;
+  }
 
-#conteudo {
-    background-color: #4a4a4a;
-    padding: 5px;
-    margin: 0px; 
-    min-width: 24rem;
-    max-width: 34rem;
-    min-height: 68.5vh;
-}
+  .status-container {
+    text-align: center;
+    margin-bottom: 20px;
+  }
 
+  .status-icon {
+    font-size: 50px;
+    color: #9d00ff;
+    cursor: pointer;
+  }
 
-
-.status {
-    font-size: 18px;
-    font-weight: bold;
-}
-
-.url {
-    word-wrap: break-word;
-    font-size: 12px;
+  .status-text {
+    font-size: 20px;
     margin-top: 10px;
-}
+    font-weight: bold;
+  }
 
+  .subtext {
+    font-size: 12px;
+    color: #999;
+    margin-top: 5px;
+  }
+
+  .info-box {
+    width: 90%;
+    background-color: #2d2340;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+  }
+
+  .info-icon {
+    margin-right: 8px;
+  }
+
+  .info-status {
+    color: #ccc;
+  }
+
+  .verify-button {
+    margin-top: 10px;
+    padding: 8px 16px;
+    font-size: 14px;
+    background-color: #5a45ff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .verify-button:hover {
+    background-color: #4836d9;
+  }
+  #url {
+    display: inline-block;
+    max-width: 220px; /* ajuste como quiser */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+  }
+  

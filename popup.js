@@ -1,21 +1,36 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const status = document.getElementById("status");
-  const url = document.getElementById("url");
+const powerIcon = document.getElementById("power-icon");
+const statusText = document.getElementById("status-text");
+const url = document.getElementById("url");
+const status = document.getElementById("status");
+const btnVerificar = document.getElementById("btn-verificar");
 
-  if (!status || !url) {
-    console.error("Elementos HTML 'status' ou 'url' não encontrados.");
-    return;
-  }
-
+powerIcon.addEventListener("click", () => {
   atualizarStatus(url, status);
 });
 
-function atualizarStatus(urlElement, statusElement) {
+btnVerificar.addEventListener("click", async () => {
+  try {
+    const granted = await chrome.permissions.request({
+      permissions: ["tabs"],
+      origins: ["<all_urls>"]
+    });
+
+    if (granted) {
+      atualizarStatus(url, status);
+    } else {
+      alert("Permissão negada. Não é possível verificar a URL.");
+    }
+  } catch (e) {
+    console.error("Erro ao pedir permissão:", e);
+  }
+});
+
+
+async function atualizarStatus(urlElement, statusElement) {
   chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
     const activeTab = tabs[0];
 
     if (!activeTab || !activeTab.url) {
-      console.error("Aba ativa não encontrada.");
       urlElement.textContent = "URL indisponível.";
       statusElement.textContent = "Erro ao obter URL da aba.";
       statusElement.style.color = "gray";
@@ -34,9 +49,11 @@ function atualizarStatus(urlElement, statusElement) {
       if (inseguro) {
         statusElement.textContent = "❌ Site marcado como inseguro.";
         statusElement.style.color = "red";
+        statusText.textContent = "NÃO PROTEGIDO";
       } else if (!verificacaoHomografos(urlAtual)) {
         statusElement.textContent = "✅ Site seguro.";
         statusElement.style.color = "green";
+        statusText.textContent = "PROTEGIDO";
       }
     } else {
       const inseguro = await verificarSite(urlAtual);
@@ -47,15 +64,18 @@ function atualizarStatus(urlElement, statusElement) {
       if (inseguro) {
         statusElement.textContent = "❌ Site marcado como inseguro.";
         statusElement.style.color = "red";
+        statusText.textContent = "NÃO PROTEGIDO";
       } else if (!verificacaoHomografos(urlAtual)) {
         statusElement.textContent = "✅ Site seguro.";
         statusElement.style.color = "green";
+        statusText.textContent = "PROTEGIDO";
       }
     }
 
     if (verificacaoHomografos(urlAtual)) {
       statusElement.textContent = "⚠️ Cuidado! Este site pode ser perigoso.";
       statusElement.style.color = "red";
+      statusText.textContent = "NÃO PROTEGIDO";
     }
   });
 }
@@ -92,7 +112,6 @@ function verificacaoHomografos(url) {
   try {
     hostname = new URL(url).hostname;
   } catch (e) {
-    console.error("URL inválida:", url);
     return false;
   }
 
