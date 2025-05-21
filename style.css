@@ -52,6 +52,7 @@ body {
 
   .info-status {
     color: #ccc;
+    font-size: 15px;
   }
 
   .verify-button {

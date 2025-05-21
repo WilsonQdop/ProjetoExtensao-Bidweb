@@ -1,28 +1,9 @@
-const powerIcon = document.getElementById("power-icon");
 const statusText = document.getElementById("status-text");
 const urlElement = document.getElementById("url");
 const statusElement = document.getElementById("status");
-const btnVerificar = document.getElementById("btn-verificar");
 
-powerIcon.addEventListener("click", () => {
+document.addEventListener("DOMContentLoaded", () => {
   atualizarStatus(urlElement, statusElement);
-});
-
-btnVerificar.addEventListener("click", async () => {
-  try {
-    const granted = await chrome.permissions.request({
-      permissions: ["tabs"],
-      origins: ["<all_urls>"]
-    });
-
-    if (granted) {
-      atualizarStatus(urlElement, statusElement);
-    } else {
-      alert("Permissão negada. Não é possível verificar a URL.");
-    }
-  } catch (e) {
-    console.error("Erro ao pedir permissão:", e);
-  }
 });
 
 function queryTabs(queryOptions) {
