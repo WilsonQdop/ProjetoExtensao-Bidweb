@@ -25,9 +25,15 @@ btnVerificar.addEventListener("click", async () => {
   }
 });
 
+function queryTabs(queryOptions) {
+  return new Promise((resolve) => {
+    chrome.tabs.query(queryOptions, resolve);
+  });
+}
 
 async function atualizarStatus(urlElement, statusElement) {
-  chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+  try {
+    const tabs = await queryTabs({ active: true, currentWindow: true });
     const activeTab = tabs[0];
 
     if (!activeTab || !activeTab.url) {
@@ -40,36 +46,21 @@ async function atualizarStatus(urlElement, statusElement) {
     const urlAtual = activeTab.url;
     urlElement.textContent = urlAtual;
 
-    const verificacoesData = await chrome.storage.local.get("verificacoes");
-    const verificacoes = verificacoesData.verificacoes || {};
+    const response = await chrome.runtime.sendMessage({
+      type: "verificar_url",
+      url: urlAtual
+    });
 
-    if (verificacoes.hasOwnProperty(urlAtual)) {
-      const inseguro = verificacoes[urlAtual];
+    const inseguro = response.inseguro;
 
-      if (inseguro) {
-        statusElement.textContent = "❌ Site marcado como inseguro.";
-        statusElement.style.color = "red";
-        statusText.textContent = "NÃO PROTEGIDO";
-      } else if (!verificacaoHomografos(urlAtual)) {
-        statusElement.textContent = "✅ Site seguro.";
-        statusElement.style.color = "green";
-        statusText.textContent = "PROTEGIDO";
-      }
-    } else {
-      const inseguro = await verificarSite(urlAtual);
-
-      verificacoes[urlAtual] = inseguro;
-      await chrome.storage.local.set({ verificacoes });
-
-      if (inseguro) {
-        statusElement.textContent = "❌ Site marcado como inseguro.";
-        statusElement.style.color = "red";
-        statusText.textContent = "NÃO PROTEGIDO";
-      } else if (!verificacaoHomografos(urlAtual)) {
-        statusElement.textContent = "✅ Site seguro.";
-        statusElement.style.color = "green";
-        statusText.textContent = "PROTEGIDO";
-      }
+    if (inseguro) {
+      statusElement.textContent = "❌ Site marcado como inseguro.";
+      statusElement.style.color = "red";
+      statusText.textContent = "NÃO PROTEGIDO";
+    } else if (!verificacaoHomografos(urlAtual)) {
+      statusElement.textContent = "✅ Site seguro.";
+      statusElement.style.color = "green";
+      statusText.textContent = "PROTEGIDO";
     }
 
     if (verificacaoHomografos(urlAtual)) {
@@ -77,34 +68,11 @@ async function atualizarStatus(urlElement, statusElement) {
       statusElement.style.color = "red";
       statusText.textContent = "NÃO PROTEGIDO";
     }
-  });
-}
-
-async function verificarSite(url) {
-  const apiKey = "AIzaSyDgo_mMrtYZBFLRxFBVoeuaG8uw0E-fx5k";
-
-  const response = await fetch(
-    "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=" + apiKey,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        client: {
-          clientId: "extensao-seguranca",
-          clientVersion: "1.0",
-        },
-        threatInfo: {
-          threatTypes: ["MALWARE", "SOCIAL_ENGINEERING"],
-          platformTypes: ["ANY_PLATFORM"],
-          threatEntryTypes: ["URL"],
-          threatEntries: [{ url }],
-        },
-      }),
-      headers: { "Content-Type": "application/json" },
-    }
-  );
-
-  const data = await response.json();
-  return !!data.matches;
+  } catch (error) {
+    console.error("Erro em atualizarStatus:", error);
+    statusElement.textContent = "Erro ao verificar o site.";
+    statusElement.style.color = "gray";
+  }
 }
 
 function verificacaoHomografos(url) {
