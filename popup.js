@@ -1,11 +1,11 @@
 const powerIcon = document.getElementById("power-icon");
 const statusText = document.getElementById("status-text");
-const url = document.getElementById("url");
-const status = document.getElementById("status");
+const urlElement = document.getElementById("url");
+const statusElement = document.getElementById("status");
 const btnVerificar = document.getElementById("btn-verificar");
 
 powerIcon.addEventListener("click", () => {
-  atualizarStatus(url, status);
+  atualizarStatus(urlElement, statusElement);
 });
 
 btnVerificar.addEventListener("click", async () => {
@@ -16,7 +16,7 @@ btnVerificar.addEventListener("click", async () => {
     });
 
     if (granted) {
-      atualizarStatus(url, status);
+      atualizarStatus(urlElement, statusElement);
     } else {
       alert("Permissão negada. Não é possível verificar a URL.");
     }
