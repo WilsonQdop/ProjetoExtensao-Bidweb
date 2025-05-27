@@ -4,6 +4,27 @@ const statusElement = document.getElementById("status");
 
 document.addEventListener("DOMContentLoaded", () => {
   atualizarStatus(urlElement, statusElement);
+
+  const themeButton = document.getElementById("toggle-theme");
+  if (themeButton) {
+    themeButton.addEventListener("click", toggleTheme);
+  }
+
+   chrome.storage.local.get("theme", (result) => {
+    const theme = result.theme || "dark"; 
+    const body = document.body;
+    const themeButton = document.getElementById("toggle-theme");
+
+    if (theme === "light") {
+      body.classList.add("light-mode");
+      themeButton.src = "icons/lua.png";
+    } else {
+      body.classList.remove("light-mode");
+      themeButton.src = "icons/brilho.png";
+    }
+  });
+
+
 });
 
 function queryTabs(queryOptions) {
@@ -69,3 +90,17 @@ function verificacaoHomografos(url) {
 
   return punycodePattern.test(hostname) || unicodeSpoofingPattern.test(hostname);
 }
+
+function toggleTheme() {
+  const body = document.body;
+  const themeButton = document.getElementById("toggle-theme");
+
+  body.classList.toggle("light-mode");
+
+  const isLight = body.classList.contains("light-mode");
+
+  themeButton.src = isLight ? "icons/lua.png" : "icons/brilho.png";
+
+  chrome.storage.local.set({ theme: isLight ? "light" : "dark" });
+}
+

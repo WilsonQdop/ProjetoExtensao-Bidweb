@@ -7,16 +7,29 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="header">
+    <div class="header-left">
+      <img src="icons/icon48.png" alt="Ícone da extensão" />
+      <span>NetWard</span>
+    </div>
+    <div class="header-right">
+      <img src="icons/definicoes.png" alt="Configurações" title="Configurações" />
+      <img src="icons/brilho.png" alt="Tema" title="Alternar tema" id="toggle-theme" />
+
+    </div>
+  </div>
+
   <div class="status-container">
-    <div class="status-icon" id="power-icon"><img src="icons/icon48.png" alt=""></div>
     <div class="status-text" id="status-text"></div>
     <div class="info-status" id="status">Status</div>
   </div>
 
   <div class="info-box">
-    <div><span class="info-icon">🌐</span> <span id="url">URL atual</span></div>
-    
-  </div>
+  <span class="info-icon"><img src="icons/mundo.png" alt=""></span> 
+  <span id="url">URL atual</span>
+</div>
+
+
   <script src="popup.js"></script>
 </body>
 </html>
