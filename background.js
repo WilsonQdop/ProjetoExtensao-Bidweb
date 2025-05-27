@@ -6,24 +6,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ inseguro: false });
     });
 
-    return true; 
+    return true;
   }
 });
 
 async function verificarSite(url) {
-  const [safeBrowsingInseguro, virusTotalInseguro] = await Promise.all([
-    verificarSafeBrowsing(url),
-    verificarVirusTotal(url)
+  const [safeBrowseInseguro, virusTotalInseguro, abuseIpdbInseguro] = await Promise.all([
+    verificarSafeBrowse(url),
+    verificarVirusTotal(url),
+    verificarAbuseIPDB(url)
   ]);
 
-  return safeBrowsingInseguro || virusTotalInseguro;
+  return safeBrowseInseguro || virusTotalInseguro || abuseIpdbInseguro;
 }
 
-async function verificarSafeBrowsing(url) {
+async function verificarSafeBrowse(url) {
   const apiKey = "AIzaSyDgo_mMrtYZBFLRxFBVoeuaG8uw0E-fx5k";
 
   const response = await fetch(
-    "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=" + apiKey,
+    "https://safeBrowse.googleapis.com/v4/threatMatches:find?key=" + apiKey,
     {
       method: "POST",
       body: JSON.stringify({
@@ -95,6 +96,45 @@ async function verificarVirusTotal(url) {
 
     return inseguro;
   } catch {
+    return false;
+  }
+}
+
+function isIpAddress(ip) {
+  const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3,3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3,3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))$/;
+  return ipv4Regex.test(ip) || ipv6Regex.test(ip);
+}
+
+async function verificarAbuseIPDB(url) {
+  const abuseIPDBApiKey = "21f0c06f86a8257564987bf927328ddb29ca84535b946c6c333171adb05cf0a81ade47e93c0c2f59";
+
+  try {
+    const ip = new URL(url).hostname;
+
+    if (!isIpAddress(ip)) {
+      console.warn(`Skipping AbuseIPDB check for non-IP hostname: ${ip}`);
+      return false; 
+    }
+
+    const response = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${ip}`, {
+      method: "GET",
+      headers: {
+        "Key": abuseIPDBApiKey,
+        "Accept": "application/json"
+      }
+    });
+
+    const data = await response.json();
+
+    if (data.errors && data.errors.length > 0) {
+        console.error("AbuseIPDB API error:", data.errors);
+        return false;
+    }
+
+    return data.data.abuseConfidenceScore > 50;
+  } catch (error) {
+    console.error("Error during AbuseIPDB verification:", error);
     return false;
   }
 }
