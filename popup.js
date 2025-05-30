@@ -10,8 +10,8 @@ document.addEventListener("DOMContentLoaded", () => {
     themeButton.addEventListener("click", toggleTheme);
   }
 
-   chrome.storage.local.get("theme", (result) => {
-    const theme = result.theme || "dark"; 
+  chrome.storage.local.get("theme", (result) => {
+    const theme = result.theme || "dark";
     const body = document.body;
     const themeButton = document.getElementById("toggle-theme");
 
@@ -23,8 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
       themeButton.src = "icons/brilho.png";
     }
   });
-
-
 });
 
 function queryTabs(queryOptions) {
@@ -59,36 +57,17 @@ async function atualizarStatus(urlElement, statusElement) {
       statusElement.textContent = "❌ Site marcado como inseguro.";
       statusElement.style.color = "red";
       statusText.textContent = "NÃO PROTEGIDO";
-    } else if (!verificacaoHomografos(urlAtual)) {
+    } else {
       statusElement.textContent = "✅ Site seguro.";
       statusElement.style.color = "green";
       statusText.textContent = "PROTEGIDO";
     }
 
-    if (verificacaoHomografos(urlAtual)) {
-      statusElement.textContent = "⚠️ Cuidado! Este site pode ser perigoso.";
-      statusElement.style.color = "red";
-      statusText.textContent = "NÃO PROTEGIDO";
-    }
   } catch (error) {
     console.error("Erro em atualizarStatus:", error);
     statusElement.textContent = "Erro ao verificar o site.";
     statusElement.style.color = "gray";
   }
-}
-
-function verificacaoHomografos(url) {
-  let hostname;
-  try {
-    hostname = new URL(url).hostname;
-  } catch (e) {
-    return false;
-  }
-
-  const punycodePattern = /^xn--/;
-  const unicodeSpoofingPattern = /[^\x00-\x7F]/;
-
-  return punycodePattern.test(hostname) || unicodeSpoofingPattern.test(hostname);
 }
 
 function toggleTheme() {
@@ -103,4 +82,3 @@ function toggleTheme() {
 
   chrome.storage.local.set({ theme: isLight ? "light" : "dark" });
 }
-

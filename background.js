@@ -11,40 +11,77 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function verificarSite(url) {
-  const [safeBrowseInseguro, virusTotalInseguro, abuseIpdbInseguro] = await Promise.all([
-    verificarSafeBrowse(url),
+  const [safeBrowsingInseguro, virusTotalInseguro, abuseIPDBInseguro, homographInseguro] = await Promise.all([
+    verificarSafeBrowsing(url),
     verificarVirusTotal(url),
-    verificarAbuseIPDB(url)
+    (async () => {
+      try {
+        const hostname = new URL(url).hostname;
+        if (isIpAddress(hostname)) {
+          return verificarAbuseIPDB(hostname);
+        } else {
+          const resolvedIp = await getIpFromDnsApi(hostname);
+          if (resolvedIp) {
+            return verificarAbuseIPDB(resolvedIp);
+          }
+          console.warn(`Não foi possível resolver o IP para ${hostname} via API de DNS.`);
+          return false;
+        }
+      } catch (e) {
+        console.error("Erro ao processar URL para AbuseIPDB:", e);
+        return false;
+      }
+    })(),
+    Promise.resolve(verificacaoHomografos(url)) 
   ]);
 
-  return safeBrowseInseguro || virusTotalInseguro || abuseIpdbInseguro;
+  return safeBrowsingInseguro || virusTotalInseguro || abuseIPDBInseguro || homographInseguro;
 }
 
-async function verificarSafeBrowse(url) {
+function verificacaoHomografos(url) {
+  let hostname;
+  try {
+    hostname = new URL(url).hostname;
+  } catch (e) {
+    return false;
+  }
+
+  const punycodePattern = /^xn--/;
+  const unicodeSpoofingPattern = /[^\x00-\x7F]/;
+
+  return punycodePattern.test(hostname) || unicodeSpoofingPattern.test(hostname);
+}
+
+async function verificarSafeBrowsing(url) {
   const apiKey = "AIzaSyDgo_mMrtYZBFLRxFBVoeuaG8uw0E-fx5k";
 
-  const response = await fetch(
-    "https://safeBrowse.googleapis.com/v4/threatMatches:find?key=" + apiKey,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        client: {
-          clientId: "extensao-seguranca",
-          clientVersion: "1.0"
-        },
-        threatInfo: {
-          threatTypes: ["MALWARE", "SOCIAL_ENGINEERING"],
-          platformTypes: ["ANY_PLATFORM"],
-          threatEntryTypes: ["URL"],
-          threatEntries: [{ url }]
-        }
-      }),
-      headers: { "Content-Type": "application/json" }
-    }
-  );
+  try {
+    const response = await fetch(
+      "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=" + apiKey,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          client: {
+            clientId: "extensao-seguranca",
+            clientVersion: "1.0"
+          },
+          threatInfo: {
+            threatTypes: ["MALWARE", "SOCIAL_ENGINEERING"],
+            platformTypes: ["ANY_PLATFORM"],
+            threatEntryTypes: ["URL"],
+            threatEntries: [{ url }]
+          }
+        }),
+        headers: { "Content-Type": "application/json" }
+      }
+    );
 
-  const data = await response.json();
-  return !!data.matches;
+    const data = await response.json();
+    return !!data.matches;
+  } catch (error) {
+    console.error("Erro durante a verificação do Safe Browsing:", error);
+    return false;
+  }
 }
 
 function toBase64Url(input) {
@@ -58,7 +95,7 @@ async function verificarVirusTotal(url) {
   const virusTotalApiKey = "9f9589efd1d03537833541b211b53df70ec28bd8c2daf1bbadffaa65285b9b70";
 
   try {
-    const response = await fetch("https://www.virustotal.com/api/v3/urls", {
+    const submitResponse = await fetch("https://www.virustotal.com/api/v3/urls", {
       method: "POST",
       headers: {
         "x-apikey": virusTotalApiKey,
@@ -67,38 +104,66 @@ async function verificarVirusTotal(url) {
       body: `url=${encodeURIComponent(url)}`
     });
 
-    const postResult = await response.json();
-    const base64UrlId = toBase64Url(url);
-    const reportUrl = `https://www.virustotal.com/api/v3/urls/${base64UrlId}`;
+    const submitResult = await submitResponse.json();
 
-    const reportResponse = await fetch(reportUrl, {
-      method: "GET",
-      headers: {
-        "x-apikey": virusTotalApiKey
-      }
-    });
-
-    const reportData = await reportResponse.json();
-
-    if (reportData.error) {
+    if (submitResult.error) {
+      console.error("VirusTotal submission error:", submitResult.error);
       return false;
     }
 
-    const analysisResults = reportData.data.attributes.last_analysis_results;
+    const analysisId = submitResult.data ? submitResult.data.id : null;
+
+    if (!analysisId) {
+        console.warn("VirusTotal did not return an analysis ID.");
+        return false;
+    }
+
+    const reportUrl = `https://www.virustotal.com/api/v3/analyses/${analysisId}`;
+    let reportData = null;
+    let attempts = 0;
+    const maxAttempts = 5;
+    const delay = 2000;
+
+    while (attempts < maxAttempts) {
+        const reportResponse = await fetch(reportUrl, {
+            method: "GET",
+            headers: {
+                "x-apikey": virusTotalApiKey
+            }
+        });
+        reportData = await reportResponse.json();
+
+        if (reportData.data && reportData.data.attributes && reportData.data.attributes.status === 'completed') {
+            break;
+        }
+
+        attempts++;
+        await new Promise(res => setTimeout(res, delay));
+    }
+
+    if (!reportData || !reportData.data || !reportData.data.attributes || reportData.data.attributes.status !== 'completed') {
+        console.warn("VirusTotal analysis did not complete in time or data is missing.");
+        return false;
+    }
+
+    const analysisResults = reportData.data.attributes.results;
     let inseguro = false;
 
     for (const engine in analysisResults) {
       const result = analysisResults[engine];
       if (result.category === "malicious" || result.category === "suspicious") {
         inseguro = true;
+        break;
       }
     }
 
     return inseguro;
-  } catch {
+  } catch (error) {
+    console.error("Erro durante a verificação do VirusTotal:", error);
     return false;
   }
 }
+
 
 function isIpAddress(ip) {
   const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -106,18 +171,63 @@ function isIpAddress(ip) {
   return ipv4Regex.test(ip) || ipv6Regex.test(ip);
 }
 
-async function verificarAbuseIPDB(url) {
+function verificacaoHomografos(url) {
+  let hostname;
+  try {
+    hostname = new URL(url).hostname;
+  } catch (e) {
+    return false;
+  }
+
+  const punycodePattern = /^xn--/;
+  const unicodeSpoofingPattern = /[^\x00-\x7F]/;
+
+  return punycodePattern.test(hostname) || unicodeSpoofingPattern.test(hostname);
+}
+
+async function getIpFromDnsApi(hostname) {
+  const whoisXmlApiKey = "at_F7gOoGKG9fluEDeZMZbzZyMi0u5BG"; 
+  const dnsApiUrl = `https://www.whoisxmlapi.com/whoisserver/DNSService?apiKey=${whoisXmlApiKey}&domainName=${encodeURIComponent(hostname)}&type=A,AAAA&outputFormat=JSON`;
+
+  try {
+    const response = await fetch(dnsApiUrl);
+
+    if (!response.ok) {
+      console.error(`Erro na API de DNS (WhoisXMLAPI): ${response.status} - ${response.statusText}`);
+      const errorData = await response.json();
+      console.error("Detalhes do erro da WhoisXMLAPI:", errorData);
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (data.DNSData && data.DNSData.dnsRecords) {
+      const ipRecord = data.DNSData.dnsRecords.find(record => record.dnsType === 'A' || record.dnsType === 'AAAA');
+
+      if (ipRecord && ipRecord.address) {
+        return ipRecord.address;
+      }
+    }
+
+    console.warn(`Nenhum registro IP (A ou AAAA) encontrado para ${hostname} na WhoisXMLAPI.`);
+    return null;
+
+  } catch (error) {
+    console.error("Erro ao obter IP da WhoisXMLAPI:", error);
+    return null;
+  }
+}
+
+async function verificarAbuseIPDB(ipAddress) {
   const abuseIPDBApiKey = "21f0c06f86a8257564987bf927328ddb29ca84535b946c6c333171adb05cf0a81ade47e93c0c2f59";
 
   try {
-    const ip = new URL(url).hostname;
-
-    if (!isIpAddress(ip)) {
-      console.warn(`Skipping AbuseIPDB check for non-IP hostname: ${ip}`);
-      return false; 
+    if (!isIpAddress(ipAddress)) {
+      console.warn(`Skipping AbuseIPDB check for non-IP: ${ipAddress}`);
+      return false;
     }
 
-    const response = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${ip}`, {
+    const response = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${ipAddress}`, {
       method: "GET",
       headers: {
         "Key": abuseIPDBApiKey,
@@ -131,8 +241,13 @@ async function verificarAbuseIPDB(url) {
         console.error("AbuseIPDB API error:", data.errors);
         return false;
     }
-
-    return data.data.abuseConfidenceScore > 50;
+    
+    if (data.data && typeof data.data.abuseConfidenceScore === 'number') {
+        return data.data.abuseConfidenceScore > 50;
+    } else {
+        console.warn("AbuseIPDB response missing expected data structure or score:", data);
+        return false;
+    }
   } catch (error) {
     console.error("Error during AbuseIPDB verification:", error);
     return false;
