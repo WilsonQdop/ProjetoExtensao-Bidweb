@@ -1,6 +1,7 @@
 const statusText = document.getElementById("status-text");
 const urlElement = document.getElementById("url");
 const statusElement = document.getElementById("status");
+const loadingSpinner = document.getElementById("loading-spinner");
 
 document.addEventListener("DOMContentLoaded", () => {
   atualizarStatus(urlElement, statusElement);
@@ -46,10 +47,14 @@ async function atualizarStatus(urlElement, statusElement) {
     const urlAtual = activeTab.url;
     urlElement.textContent = urlAtual;
 
+    statusElement.textContent = "Verificando...";
+    statusElement.style.color = "orange";
+    loadingSpinner.style.display = "block";
     const response = await chrome.runtime.sendMessage({
       type: "verificar_url",
       url: urlAtual
     });
+    loadingSpinner.style.display = "none";
 
     const inseguro = response.inseguro;
 
@@ -67,6 +72,7 @@ async function atualizarStatus(urlElement, statusElement) {
     console.error("Erro em atualizarStatus:", error);
     statusElement.textContent = "Erro ao verificar o site.";
     statusElement.style.color = "gray";
+    loadingSpinner.style.display = "none";
   }
 }
 
